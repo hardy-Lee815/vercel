@@ -230,6 +230,9 @@
   </button>
   <div class="spacer"></div>
   <div class="data-range" id="dataRange">데이터 로딩 중...</div>
+  <div id="storageBadge" style="display:none;font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(63,185,80,.12);color:#3fb950;border:1px solid rgba(63,185,80,.3);cursor:pointer;" onclick="resetToBuiltin()" title="클릭 시 내장 데이터로 초기화">
+    💾 업데이트됨 ✕
+  </div>
 </div>
 
 <div class="region-tabs" id="regionTabs"></div>
@@ -516,17 +519,35 @@ const CAT_COLORS = {
 
 async function loadData() {
   try {
-    // 전체 base64 데이터 조합 (분할 저장된 경우 합치기)
-    const fullB64 = DATA_B64;
-    const binary = atob(fullB64);
+    // 1) localStorage에 저장된 업데이트 데이터 우선 사용
+    const saved = localStorage.getItem('gangnamunni_dashboard_v1');
+    if (saved) {
+      try {
+        DASHBOARD_DATA = JSON.parse(saved);
+        console.log('[Dashboard] localStorage 데이터 로드:', DASHBOARD_DATA.dates.slice(-3));
+        init();
+        return;
+      } catch(e) {
+        console.warn('[Dashboard] localStorage 파싱 실패, 내장 데이터 사용:', e);
+        localStorage.removeItem('gangnamunni_dashboard_v1');
+      }
+    }
+    // 2) 내장 DATA_B64 사용
+    const binary = atob(DATA_B64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const decompressed = pako.inflate(bytes, { to: 'string' });
     DASHBOARD_DATA = JSON.parse(decompressed);
     init();
   } catch(e) {
-    console.error('데이터 로드 실패:', e);
+    console.error('[Dashboard] 데이터 로드 실패:', e);
   }
+}
+
+function resetToBuiltin() {
+  if (!confirm('업로드한 데이터를 모두 삭제하고 기본 내장 데이터로 초기화할까요?')) return;
+  localStorage.removeItem('gangnamunni_dashboard_v1');
+  location.reload();
 }
 
 function init() {
@@ -1218,9 +1239,21 @@ function applyUpload() {
   DASHBOARD_DATA = window._pendingData;
   window._pendingData = null;
 
+  // localStorage에 영구 저장
+  try {
+    localStorage.setItem('gangnamunni_dashboard_v1', JSON.stringify(DASHBOARD_DATA));
+    console.log('[Dashboard] 데이터 localStorage 저장 완료');
+  } catch(e) {
+    console.warn('[Dashboard] localStorage 저장 실패 (용량 초과?):', e);
+    showToast('⚠️ 저장 공간 부족 — 이번 세션에만 유지됩니다.');
+  }
+
   // 날짜 범위 업데이트
   const dates = DASHBOARD_DATA.dates;
   document.getElementById('dataRange').textContent = `${dates[0]} ~ ${dates[dates.length-1]}`;
+  // localStorage 저장 여부 배지
+  const badge = document.getElementById('storageBadge');
+  if (badge) badge.style.display = localStorage.getItem('gangnamunni_dashboard_v1') ? 'block' : 'none';
 
   // 지역 탭 재렌더 (신규 지역 포함)
   rebuildRegionTabs();
@@ -1232,7 +1265,7 @@ function applyUpload() {
   if (currentPage === 'top50wow') renderWoWTable();
 
   closeUploadModal();
-  showToast('📊 데이터가 업데이트되었습니다.');
+  showToast('📊 데이터가 업데이트되었습니다. (브라우저에 영구 저장)');
 }
 
 function rebuildRegionTabs() {
