@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>강남언니 지역별 시술 트렌드 (내부용)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
@@ -181,6 +182,38 @@
   .ic.dn{ background:rgba(248,81,73,.1);  color:#f85149; border-color:rgba(248,81,73,.3); }
   .ic.yy{ background:rgba(167,139,250,.1);color:#a78bfa; border-color:rgba(167,139,250,.3); }
 
+
+  /* ═══ UPLOAD FEATURE ═══ */
+  .upload-btn { display:flex; align-items:center; gap:6px; padding:6px 14px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; transition:opacity .15s; }
+  .upload-btn:hover { opacity:.85; }
+  .umodal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px 26px; width:520px; max-width:92vw; max-height:90vh; overflow-y:auto; }
+  .umodal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .umodal-title { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; }
+  .umodal-close { background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer; padding:2px 6px; border-radius:6px; }
+  .umodal-close:hover { background:var(--surface2); }
+  .umodal-guide { background:rgba(88,166,255,.07); border:1px solid rgba(88,166,255,.2); border-radius:10px; padding:12px 16px; margin-bottom:16px; }
+  .guide-title { font-size:12px; font-weight:700; color:var(--accent); margin-bottom:8px; }
+  .guide-body { font-size:12px; color:var(--text2); line-height:1.8; }
+  .guide-body code { background:var(--surface2); padding:1px 5px; border-radius:4px; font-family:monospace; color:var(--text); }
+  .upload-drop-zone { border:2px dashed var(--border); border-radius:12px; padding:28px 20px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s; }
+  .upload-drop-zone:hover, .upload-drop-zone.drag-over { border-color:var(--accent); background:rgba(88,166,255,.05); }
+  .upload-status { font-size:12px; padding:6px 12px; border-radius:8px; min-height:28px; display:flex; align-items:center; }
+  .upload-status.ok      { background:rgba(63,185,80,.1);  color:#3fb950; }
+  .upload-status.error   { background:rgba(248,81,73,.1);  color:#f85149; }
+  .upload-status.loading { background:rgba(88,166,255,.1); color:var(--accent); }
+  .uprev-title { font-size:13px; font-weight:700; margin-bottom:10px; }
+  .uprev-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+  .uprev-item { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; text-align:center; }
+  .uprev-n { display:block; font-size:20px; font-weight:800; color:var(--accent); }
+  .uprev-l { display:block; font-size:11px; color:var(--text2); margin-top:2px; }
+  .uprev-tag { font-size:12px; color:var(--text2); margin-bottom:6px; padding:5px 10px; background:var(--surface2); border-radius:6px; }
+  .uprev-btns { display:flex; gap:10px; margin-top:14px; justify-content:flex-end; }
+  .btn-apply  { padding:9px 22px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+  .btn-apply:hover { opacity:.85; }
+  .btn-cancel { padding:9px 16px; background:var(--surface2); color:var(--text2); border:1px solid var(--border); border-radius:8px; font-size:13px; cursor:pointer; }
+  .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px); background:#1c2128; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:13px; font-weight:600; opacity:0; transition:all .3s; z-index:3000; white-space:nowrap; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
 </style>
 </head>
 <body>
@@ -191,6 +224,10 @@
     <div class="logo-text">강남언니 지역별 시술 트렌드</div>
   </div>
   <div class="badge">내부용</div>
+  <button class="upload-btn" onclick="openUploadModal()" title="엑셀 파일 업로드">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v7.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 9.293V1.5A.5.5 0 0 1 8 1z"/><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.1a.5.5 0 0 1 1 0v2.1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.1a.5.5 0 0 1 .5-.5z"/></svg>
+    RAW 업로드
+  </button>
   <div class="spacer"></div>
   <div class="data-range" id="dataRange">데이터 로딩 중...</div>
 </div>
@@ -310,14 +347,161 @@ let mainChart = null;
 
 // 색상 팔레트
 
-// ── REGION INSIGHTS DATA ──
-const REGION_INSIGHTS = {"강남서초": "<div class=\"ri\" id=\"ri-강남서초\"><div class=\"rih\"><div class=\"rit\">📊 강남서초 트렌드 분석</div><div class=\"rim\">2026-05-04 기준 · 최근 4주</div></div><div class=\"risummary\"><span class=\"ritb\" style=\"color:#f85149;border-color:#f8514933;background:#f8514911\">▼ 하락 추세</span><span class=\"ic\" style=\"color:#3fb950\">4주 전주기 대비 +4.8%</span></div><div class=\"rig\"><div class=\"ss\"><div class=\"st\">📁 카테고리 비중 <span class=\"stot\">최근4주 합계 163,186</span></div><table class=\"stbl\"><colgroup><col style=\"width:110px\"><col style=\"width:auto\"><col style=\"width:88px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">카테고리</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#f97b5e\"></span>보톡스</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:21.5%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">21.5%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.8pp</span></td><td class=\"sv\">35,082</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#fbbf24\"></span>피부</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:19.4%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">19.4%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.1pp</span></td><td class=\"sv\">31,624</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#4ade80\"></span>지방,다이어트</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:18.7%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">18.7%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.2pp</span></td><td class=\"sv\">30,553</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#60a5fa\"></span>필러</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:13.8%;background:#60a5fa22;border-left:3px solid #60a5fa\"></div></div></td><td class=\"sp\">13.8%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.6pp</span></td><td class=\"sv\">22,457</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#a78bfa\"></span>리프팅</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:13.3%;background:#a78bfa22;border-left:3px solid #a78bfa\"></div></div></td><td class=\"sp\">13.3%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.0pp</span></td><td class=\"sv\">21,652</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#34d399\"></span>제모</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:9.7%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">9.7%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.1pp</span></td><td class=\"sv\">15,909</td></tr></tbody></table></div><div class=\"ss\"><div class=\"st\">💊 시술 비중 Top8</div><table class=\"stbl\"><colgroup><col style=\"width:auto\"><col style=\"width:80px\"><col style=\"width:46px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">시술명</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"srk\">#1</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">사각턱보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +2%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:11.1%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">3.7%</td><td class=\"sv\">6,050</td></tr><tr><td class=\"sl\"><span class=\"srk\">#2</span><span class=\"sd\" style=\"background:#4ade80\"></span><span class=\"sname\">얼굴지방분해주사</span><span class=\"swow\" style=\"color:#3fb950\">WoW +3%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.5%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">2.8%</td><td class=\"sv\">4,644</td></tr><tr><td class=\"sl\"><span class=\"srk\">#3</span><span class=\"sd\" style=\"background:#4ade80\"></span><span class=\"sname\">윤곽주사</span><span class=\"swow\" style=\"color:#f85149\">WoW -3%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.3%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">2.8%</td><td class=\"sv\">4,494</td></tr><tr><td class=\"sl\"><span class=\"srk\">#4</span><span class=\"sd\" style=\"background:#fbbf24\"></span><span class=\"sname\">쥬베룩</span><span class=\"swow\" style=\"color:#3fb950\">WoW +3%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.3%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">2.4%</td><td class=\"sv\">3,967</td></tr><tr><td class=\"sl\"><span class=\"srk\">#5</span><span class=\"sd\" style=\"background:#4ade80\"></span><span class=\"sname\">팔지방분해주사</span><span class=\"swow\" style=\"color:#3fb950\">WoW +8%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.1%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">2.4%</td><td class=\"sv\">3,848</td></tr><tr><td class=\"sl\"><span class=\"srk\">#6</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">입꼬리보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +2%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.9%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">2.3%</td><td class=\"sv\">3,746</td></tr><tr><td class=\"sl\"><span class=\"srk\">#7</span><span class=\"sd\" style=\"background:#4ade80\"></span><span class=\"sname\">복부지방분해주사</span><span class=\"swow\" style=\"color:#3fb950\">WoW +7%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.8%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">2.3%</td><td class=\"sv\">3,688</td></tr><tr><td class=\"sl\"><span class=\"srk\">#8</span><span class=\"sd\" style=\"background:#4ade80\"></span><span class=\"sname\">허벅지지방분해주사</span><span class=\"swow\" style=\"color:#3fb950\">WoW +8%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.5%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">2.2%</td><td class=\"sv\">3,556</td></tr></tbody></table></div></div><div class=\"risig\"><div class=\"sirow\"><span class=\"silbl\">WoW 급등</span><span class=\"ic up\">▲ 손제모 +230%</span><span class=\"ic up\">▲ 발제모 +138%</span><span class=\"ic up\">▲ 마리오네트필러 +114%</span></div><div class=\"sirow\"><span class=\"silbl\">WoW 급락</span><span class=\"ic dn\">▼ 점빼기수술 -71%</span><span class=\"ic dn\">▼ 리쥬란에스 -62%</span><span class=\"ic dn\">▼ 인모드바디 -62%</span></div><div class=\"sirow\"><span class=\"silbl\">YoY 주목</span><span class=\"ic yy\">↑ 헤어라인제모 YoY +617%</span><span class=\"ic yy\">↑ 온다리프팅 YoY +447%</span><span class=\"ic yy\">↑ 광대보톡스 YoY +349%</span></div></div></div>", "인천": "<div class=\"ri\" id=\"ri-인천\"><div class=\"rih\"><div class=\"rit\">📊 인천 트렌드 분석</div><div class=\"rim\">2026-05-04 기준 · 최근 4주</div></div><div class=\"risummary\"><span class=\"ritb\" style=\"color:#8b949e;border-color:#8b949e33;background:#8b949e11\">→ 보합 추세</span><span class=\"ic\" style=\"color:#f85149\">4주 전주기 대비 -1.5%</span></div><div class=\"rig\"><div class=\"ss\"><div class=\"st\">📁 카테고리 비중 <span class=\"stot\">최근4주 합계 9,389</span></div><table class=\"stbl\"><colgroup><col style=\"width:110px\"><col style=\"width:auto\"><col style=\"width:88px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">카테고리</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#f97b5e\"></span>보톡스</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:28.4%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">28.4%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼1.2pp</span></td><td class=\"sv\">2,669</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#34d399\"></span>제모</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:21.6%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">21.6%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲2.7pp</span></td><td class=\"sv\">2,027</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#fbbf24\"></span>피부</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:20.0%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">20.0%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲1.2pp</span></td><td class=\"sv\">1,874</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#4ade80\"></span>지방,다이어트</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:11.7%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">11.7%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.9pp</span></td><td class=\"sv\">1,094</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#a78bfa\"></span>리프팅</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:9.4%;background:#a78bfa22;border-left:3px solid #a78bfa\"></div></div></td><td class=\"sp\">9.4%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.5pp</span></td><td class=\"sv\">886</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#60a5fa\"></span>필러</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.9%;background:#60a5fa22;border-left:3px solid #60a5fa\"></div></div></td><td class=\"sp\">6.9%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.5pp</span></td><td class=\"sv\">650</td></tr></tbody></table></div><div class=\"ss\"><div class=\"st\">💊 시술 비중 Top8</div><table class=\"stbl\"><colgroup><col style=\"width:auto\"><col style=\"width:80px\"><col style=\"width:46px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">시술명</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"srk\">#1</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">사각턱보톡스</span><span class=\"swow\" style=\"color:#f85149\">WoW -4%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:19.7%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">6.6%</td><td class=\"sv\">615</td></tr><tr><td class=\"sl\"><span class=\"srk\">#2</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">인중제모</span><span class=\"swow\" style=\"color:#3fb950\">WoW +16%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:12.6%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">4.2%</td><td class=\"sv\">394</td></tr><tr><td class=\"sl\"><span class=\"srk\">#3</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">겨드랑이제모</span><span class=\"swow\" style=\"color:#3fb950\">WoW +17%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:9.7%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">3.2%</td><td class=\"sv\">305</td></tr><tr><td class=\"sl\"><span class=\"srk\">#4</span><span class=\"sd\" style=\"background:#4ade80\"></span><span class=\"sname\">윤곽주사</span><span class=\"swow\" style=\"color:#f85149\">WoW -29%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:9.4%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">3.1%</td><td class=\"sv\">294</td></tr><tr><td class=\"sl\"><span class=\"srk\">#5</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">잔주름보톡스</span><span class=\"swow\" style=\"color:#f85149\">WoW -3%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.4%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">2.8%</td><td class=\"sv\">263</td></tr><tr><td class=\"sl\"><span class=\"srk\">#6</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">침샘보톡스</span><span class=\"swow\" style=\"color:#f85149\">WoW -4%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.7%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">2.6%</td><td class=\"sv\">241</td></tr><tr><td class=\"sl\"><span class=\"srk\">#7</span><span class=\"sd\" style=\"background:#a78bfa\"></span><span class=\"sname\">인모드리프팅</span><span class=\"swow\" style=\"color:#f85149\">WoW -0%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.3%;background:#a78bfa22;border-left:3px solid #a78bfa\"></div></div></td><td class=\"sp\">2.4%</td><td class=\"sv\">227</td></tr><tr><td class=\"sl\"><span class=\"srk\">#8</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">팔제모</span><span class=\"swow\" style=\"color:#3fb950\">WoW +21%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.7%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">2.2%</td><td class=\"sv\">210</td></tr></tbody></table></div></div><div class=\"risig\"><div class=\"sirow\"><span class=\"silbl\">WoW 급등</span><span class=\"ic up\">▲ 입술필러 +27%</span><span class=\"ic up\">▲ 얼굴지방분해주사 +15%</span><span class=\"ic up\">▲ 얼굴제모 +15%</span></div><div class=\"sirow\"><span class=\"silbl\">WoW 급락</span><span class=\"ic dn\">▼ 쥬베룩 -55%</span><span class=\"ic dn\">▼ 턱필러 -47%</span><span class=\"ic dn\">▼ 제네시스 -43%</span></div><div class=\"sirow\"><span class=\"silbl\">YoY 주목</span><span class=\"ic yy\">↑ 팔제모 YoY +207%</span><span class=\"ic yy\">↑ 스킨보톡스 YoY +191%</span><span class=\"ic yy\">↑ 인중제모 YoY +159%</span></div></div></div>", "마포": "<div class=\"ri\" id=\"ri-마포\"><div class=\"rih\"><div class=\"rit\">📊 마포 트렌드 분석</div><div class=\"rim\">2026-05-04 기준 · 최근 4주</div></div><div class=\"risummary\"><span class=\"ritb\" style=\"color:#8b949e;border-color:#8b949e33;background:#8b949e11\">→ 보합 추세</span><span class=\"ic\" style=\"color:#3fb950\">4주 전주기 대비 +10.4%</span></div><div class=\"rig\"><div class=\"ss\"><div class=\"st\">📁 카테고리 비중 <span class=\"stot\">최근4주 합계 22,489</span></div><table class=\"stbl\"><colgroup><col style=\"width:110px\"><col style=\"width:auto\"><col style=\"width:88px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">카테고리</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#fbbf24\"></span>피부</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:27.3%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">27.3%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼1.0pp</span></td><td class=\"sv\">6,134</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#f97b5e\"></span>보톡스</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:19.8%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">19.8%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.1pp</span></td><td class=\"sv\">4,454</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#34d399\"></span>제모</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:18.7%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">18.7%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲1.1pp</span></td><td class=\"sv\">4,198</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#4ade80\"></span>지방,다이어트</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:12.6%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">12.6%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.8pp</span></td><td class=\"sv\">2,828</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#60a5fa\"></span>필러</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:12.3%;background:#60a5fa22;border-left:3px solid #60a5fa\"></div></div></td><td class=\"sp\">12.3%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.1pp</span></td><td class=\"sv\">2,774</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#a78bfa\"></span>리프팅</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.3%;background:#a78bfa22;border-left:3px solid #a78bfa\"></div></div></td><td class=\"sp\">8.3%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.6pp</span></td><td class=\"sv\">1,875</td></tr></tbody></table></div><div class=\"ss\"><div class=\"st\">💊 시술 비중 Top8</div><table class=\"stbl\"><colgroup><col style=\"width:auto\"><col style=\"width:80px\"><col style=\"width:46px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">시술명</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"srk\">#1</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">사각턱보톡스</span><span class=\"swow\" style=\"color:#f85149\">WoW -6%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:12.8%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">4.3%</td><td class=\"sv\">956</td></tr><tr><td class=\"sl\"><span class=\"srk\">#2</span><span class=\"sd\" style=\"background:#60a5fa\"></span><span class=\"sname\">입술필러</span><span class=\"swow\" style=\"color:#3fb950\">WoW +12%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:9.9%;background:#60a5fa22;border-left:3px solid #60a5fa\"></div></div></td><td class=\"sp\">3.3%</td><td class=\"sv\">741</td></tr><tr><td class=\"sl\"><span class=\"srk\">#3</span><span class=\"sd\" style=\"background:#60a5fa\"></span><span class=\"sname\">입꼬리필러</span><span class=\"swow\" style=\"color:#3fb950\">WoW +13%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.6%;background:#60a5fa22;border-left:3px solid #60a5fa\"></div></div></td><td class=\"sp\">2.9%</td><td class=\"sv\">642</td></tr><tr><td class=\"sl\"><span class=\"srk\">#4</span><span class=\"sd\" style=\"background:#fbbf24\"></span><span class=\"sname\">쥬베룩</span><span class=\"swow\" style=\"color:#3fb950\">WoW +3%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.3%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">2.8%</td><td class=\"sv\">622</td></tr><tr><td class=\"sl\"><span class=\"srk\">#5</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">겨드랑이제모</span><span class=\"swow\" style=\"color:#3fb950\">WoW +24%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.2%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">2.7%</td><td class=\"sv\">614</td></tr><tr><td class=\"sl\"><span class=\"srk\">#6</span><span class=\"sd\" style=\"background:#4ade80\"></span><span class=\"sname\">얼굴지방분해주사</span><span class=\"swow\" style=\"color:#f85149\">WoW -3%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.3%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">2.4%</td><td class=\"sv\">550</td></tr><tr><td class=\"sl\"><span class=\"srk\">#7</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">인중제모</span><span class=\"swow\" style=\"color:#f85149\">WoW -1%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.3%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">2.4%</td><td class=\"sv\">546</td></tr><tr><td class=\"sl\"><span class=\"srk\">#8</span><span class=\"sd\" style=\"background:#fbbf24\"></span><span class=\"sname\">LDM</span><span class=\"swow\" style=\"color:#3fb950\">WoW +7%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.2%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">2.4%</td><td class=\"sv\">543</td></tr></tbody></table></div></div><div class=\"risig\"><div class=\"sirow\"><span class=\"silbl\">WoW 급등</span><span class=\"ic up\">▲ 승모근지방분해주사 +142%</span><span class=\"ic up\">▲ 비키니라인제모 +111%</span><span class=\"ic up\">▲ 복부체외충격파지방분해 +71%</span></div><div class=\"sirow\"><span class=\"silbl\">WoW 급락</span><span class=\"ic dn\">▼ 다한증보톡스 -46%</span><span class=\"ic dn\">▼ 피코토닝 -46%</span><span class=\"ic dn\">▼ 수염제모 -43%</span></div><div class=\"sirow\"><span class=\"silbl\">YoY 주목</span><span class=\"ic yy\">↑ LDM YoY +481%</span><span class=\"ic yy\">↑ 입꼬리보톡스 YoY +380%</span><span class=\"ic yy\">↑ 리쥬란힐러 YoY +347%</span></div></div></div>", "중구": "<div class=\"ri\" id=\"ri-중구\"><div class=\"rih\"><div class=\"rit\">📊 중구 트렌드 분석</div><div class=\"rim\">2026-05-04 기준 · 최근 4주</div></div><div class=\"risummary\"><span class=\"ritb\" style=\"color:#8b949e;border-color:#8b949e33;background:#8b949e11\">→ 보합 추세</span><span class=\"ic\" style=\"color:#3fb950\">4주 전주기 대비 +8.2%</span></div><div class=\"rig\"><div class=\"ss\"><div class=\"st\">📁 카테고리 비중 <span class=\"stot\">최근4주 합계 15,798</span></div><table class=\"stbl\"><colgroup><col style=\"width:110px\"><col style=\"width:auto\"><col style=\"width:88px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">카테고리</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#fbbf24\"></span>피부</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:31.8%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">31.8%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼1.4pp</span></td><td class=\"sv\">5,031</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#f97b5e\"></span>보톡스</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:27.3%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">27.3%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲2.2pp</span></td><td class=\"sv\">4,311</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#34d399\"></span>제모</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:19.8%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">19.8%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.9pp</span></td><td class=\"sv\">3,133</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#a78bfa\"></span>리프팅</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:9.6%;background:#a78bfa22;border-left:3px solid #a78bfa\"></div></div></td><td class=\"sp\">9.6%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.6pp</span></td><td class=\"sv\">1,523</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#60a5fa\"></span>필러</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.0%;background:#60a5fa22;border-left:3px solid #60a5fa\"></div></div></td><td class=\"sp\">6.0%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼1.0pp</span></td><td class=\"sv\">948</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#4ade80\"></span>지방,다이어트</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:4.1%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">4.1%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.0pp</span></td><td class=\"sv\">651</td></tr></tbody></table></div><div class=\"ss\"><div class=\"st\">💊 시술 비중 Top8</div><table class=\"stbl\"><colgroup><col style=\"width:auto\"><col style=\"width:80px\"><col style=\"width:46px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">시술명</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"srk\">#1</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">사각턱보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +10%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:12.6%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">4.2%</td><td class=\"sv\">661</td></tr><tr><td class=\"sl\"><span class=\"srk\">#2</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">스킨보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +19%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:11.3%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">3.8%</td><td class=\"sv\">595</td></tr><tr><td class=\"sl\"><span class=\"srk\">#3</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">잔주름보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +14%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:8.5%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">2.8%</td><td class=\"sv\">446</td></tr><tr><td class=\"sl\"><span class=\"srk\">#4</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">겨드랑이제모</span><span class=\"swow\" style=\"color:#3fb950\">WoW +15%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.9%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">2.6%</td><td class=\"sv\">418</td></tr><tr><td class=\"sl\"><span class=\"srk\">#5</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">인중제모</span><span class=\"swow\" style=\"color:#3fb950\">WoW +5%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:7.2%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">2.4%</td><td class=\"sv\">380</td></tr><tr><td class=\"sl\"><span class=\"srk\">#6</span><span class=\"sd\" style=\"background:#34d399\"></span><span class=\"sname\">브라질리언제모</span><span class=\"swow\" style=\"color:#3fb950\">WoW +22%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.7%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">2.2%</td><td class=\"sv\">354</td></tr><tr><td class=\"sl\"><span class=\"srk\">#7</span><span class=\"sd\" style=\"background:#fbbf24\"></span><span class=\"sname\">울트라콜</span><span class=\"swow\" style=\"color:#f85149\">WoW -8%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.3%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">2.1%</td><td class=\"sv\">333</td></tr><tr><td class=\"sl\"><span class=\"srk\">#8</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">다한증보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +24%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:6.3%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">2.1%</td><td class=\"sv\">332</td></tr></tbody></table></div></div><div class=\"risig\"><div class=\"sirow\"><span class=\"silbl\">WoW 급등</span><span class=\"ic up\">▲ 아쿠아필링 +192%</span><span class=\"ic up\">▲ 티타늄리프팅 +73%</span><span class=\"ic up\">▲ 입술필러 +35%</span></div><div class=\"sirow\"><span class=\"silbl\">WoW 급락</span><span class=\"ic dn\">▼ 포텐자 -52%</span><span class=\"ic dn\">▼ 아기주사 -47%</span><span class=\"ic dn\">▼ 물광주사 -45%</span></div><div class=\"sirow\"><span class=\"silbl\">YoY 주목</span><span class=\"ic yy\">↑ 잔주름보톡스 YoY +362%</span><span class=\"ic yy\">↑ 종아리제모 YoY +354%</span><span class=\"ic yy\">↑ 스킨보톡스 YoY +240%</span></div></div></div>", "송파": "<div class=\"ri\" id=\"ri-송파\"><div class=\"rih\"><div class=\"rit\">📊 송파 트렌드 분석</div><div class=\"rim\">2026-05-04 기준 · 최근 4주</div></div><div class=\"risummary\"><span class=\"ritb\" style=\"color:#8b949e;border-color:#8b949e33;background:#8b949e11\">→ 보합 추세</span><span class=\"ic\" style=\"color:#3fb950\">4주 전주기 대비 +14.0%</span></div><div class=\"rig\"><div class=\"ss\"><div class=\"st\">📁 카테고리 비중 <span class=\"stot\">최근4주 합계 8,209</span></div><table class=\"stbl\"><colgroup><col style=\"width:110px\"><col style=\"width:auto\"><col style=\"width:88px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">카테고리</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#f97b5e\"></span>보톡스</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:46.9%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">46.9%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲2.1pp</span></td><td class=\"sv\">3,851</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#fbbf24\"></span>피부</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:24.7%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">24.7%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.2pp</span></td><td class=\"sv\">2,031</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#34d399\"></span>제모</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:11.5%;background:#34d39922;border-left:3px solid #34d399\"></div></div></td><td class=\"sp\">11.5%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼2.5pp</span></td><td class=\"sv\">940</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#4ade80\"></span>지방,다이어트</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:5.6%;background:#4ade8022;border-left:3px solid #4ade80\"></div></div></td><td class=\"sp\">5.6%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼0.1pp</span></td><td class=\"sv\">456</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#a78bfa\"></span>리프팅</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:4.1%;background:#a78bfa22;border-left:3px solid #a78bfa\"></div></div></td><td class=\"sp\">4.1%&thinsp;<span style=\"color:#f85149;font-size:10px\">▼1.2pp</span></td><td class=\"sv\">334</td></tr><tr><td class=\"sl\"><span class=\"sd\" style=\"background:#60a5fa\"></span>필러</td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:3.8%;background:#60a5fa22;border-left:3px solid #60a5fa\"></div></div></td><td class=\"sp\">3.8%&thinsp;<span style=\"color:#3fb950;font-size:10px\">▲0.7pp</span></td><td class=\"sv\">311</td></tr></tbody></table></div><div class=\"ss\"><div class=\"st\">💊 시술 비중 Top8</div><table class=\"stbl\"><colgroup><col style=\"width:auto\"><col style=\"width:80px\"><col style=\"width:46px\"><col style=\"width:56px\"></colgroup><thead><tr><th class=\"sl\">시술명</th><th></th><th class=\"sp\">비중</th><th class=\"sv\">건수</th></tr></thead><tbody><tr><td class=\"sl\"><span class=\"srk\">#1</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">사각턱보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +20%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:20.8%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">6.9%</td><td class=\"sv\">569</td></tr><tr><td class=\"sl\"><span class=\"srk\">#2</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">승모근보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +28%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:17.2%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">5.7%</td><td class=\"sv\">470</td></tr><tr><td class=\"sl\"><span class=\"srk\">#3</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">종아리보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +27%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:15.9%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">5.3%</td><td class=\"sv\">434</td></tr><tr><td class=\"sl\"><span class=\"srk\">#4</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">잔주름보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +22%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:14.9%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">5.0%</td><td class=\"sv\">409</td></tr><tr><td class=\"sl\"><span class=\"srk\">#5</span><span class=\"sd\" style=\"background:#fbbf24\"></span><span class=\"sname\">쥬베룩</span><span class=\"swow\" style=\"color:#3fb950\">WoW +12%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:14.0%;background:#fbbf2422;border-left:3px solid #fbbf24\"></div></div></td><td class=\"sp\">4.7%</td><td class=\"sv\">383</td></tr><tr><td class=\"sl\"><span class=\"srk\">#6</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">다한증보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +43%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:12.9%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">4.3%</td><td class=\"sv\">352</td></tr><tr><td class=\"sl\"><span class=\"srk\">#7</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">침샘보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +12%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:11.8%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">3.9%</td><td class=\"sv\">322</td></tr><tr><td class=\"sl\"><span class=\"srk\">#8</span><span class=\"sd\" style=\"background:#f97b5e\"></span><span class=\"sname\">눈가주름보톡스</span><span class=\"swow\" style=\"color:#3fb950\">WoW +2%</span></td><td class=\"sb\"><div class=\"sbw\"><div class=\"sbi\" style=\"width:9.7%;background:#f97b5e22;border-left:3px solid #f97b5e\"></div></div></td><td class=\"sp\">3.2%</td><td class=\"sv\">265</td></tr></tbody></table></div></div><div class=\"risig\"><div class=\"sirow\"><span class=\"silbl\">WoW 급등</span><span class=\"ic up\">▲ 종아리제모 +40%</span><span class=\"ic up\">▲ 얼굴제모 +30%</span><span class=\"ic up\">▲ 팔제모 +26%</span></div><div class=\"sirow\"><span class=\"silbl\">WoW 급락</span><span class=\"ic dn\">▼ 인모드리프팅 -45%</span><span class=\"ic dn\">▼ 여드름압출 -44%</span><span class=\"ic dn\">▼ 필링 -41%</span></div><div class=\"sirow\"><span class=\"silbl\">YoY 주목</span><span class=\"ic yy\">↑ 쥬베룩 YoY +673%</span><span class=\"ic yy\">↑ 승모근보톡스 YoY +248%</span><span class=\"ic yy\">↑ 종아리보톡스 YoY +238%</span></div></div></div>"};
+// ═══════════════════════════════════════════════════
+//  DYNAMIC INSIGHT RENDERER — DASHBOARD_DATA 기반
+// ═══════════════════════════════════════════════════
+
+function _cc(cat) {
+  return (CAT_COLORS[cat] || '#8b949e');
+}
+
+function _computeInsight(regionName) {
+  const items = DASHBOARD_DATA.regions[regionName];
+  if (!items) return null;
+
+  const dates = DASHBOARD_DATA.dates;
+  const recentIdx = (() => {
+    let max = 0;
+    items.forEach(([,,sp]) => Object.keys(sp).forEach(k => { if (+k > max) max = +k; }));
+    return Math.min(max, dates.length - 1);
+  })();
+  const prevIdx  = recentIdx - 1;
+  const yoyIdx   = recentIdx - 52;
+  const last4    = [recentIdx-3, recentIdx-2, recentIdx-1, recentIdx].filter(i => i >= 0);
+  const prev4    = last4.map(i => i - 4).filter(i => i >= 0);
+
+  // 카테고리·시술 집계
+  const catR = {}, catP = {}, procArr = [];
+  items.forEach(([cat, proc, sp]) => {
+    const r4 = last4.reduce((s,i) => s + (sp[i]||0), 0);
+    const p4 = prev4.reduce((s,i) => s + (sp[i]||0), 0);
+    catR[cat] = (catR[cat]||0) + r4;
+    catP[cat] = (catP[cat]||0) + p4;
+    if (r4 > 0) procArr.push({ proc, cat, sum: r4, prev: p4 });
+  });
+  const total = Object.values(catR).reduce((a,b)=>a+b, 0);
+  const topCats = Object.entries(catR).sort((a,b)=>b[1]-a[1]);
+  procArr.sort((a,b) => b.sum - a.sum);
+
+  // WoW
+  const wowArr = [];
+  items.forEach(([cat, proc, sp]) => {
+    const cur = sp[recentIdx]||0, prv = sp[prevIdx]||0;
+    if (cur < 10 || prv < 10) return;
+    wowArr.push({ proc, cat, wow: (cur-prv)/prv*100 });
+  });
+  const wowUp = [...wowArr].sort((a,b)=>b.wow-a.wow).slice(0,3);
+  const wowDn = [...wowArr].sort((a,b)=>a.wow-b.wow).slice(0,3);
+
+  // YoY
+  const yoyArr = [];
+  if (yoyIdx >= 0) {
+    items.forEach(([cat, proc, sp]) => {
+      const cur = sp[recentIdx]||0, yv = sp[yoyIdx]||0;
+      if (cur < 10 || yv < 10) return;
+      yoyArr.push({ proc, cat, yoy: (cur-yv)/yv*100 });
+    });
+  }
+  const yoyUp = [...yoyArr].sort((a,b)=>b.yoy-a.yoy).slice(0,3);
+
+  // 트렌드 방향 (최근 13주 선형 기울기)
+  const su13 = [];
+  for (let i = recentIdx-12; i <= recentIdx; i++) {
+    su13.push(i>=0 ? items.reduce((s,[,,sp])=>s+(sp[i]||0),0) : 0);
+  }
+  const n = su13.length;
+  const xm = (n-1)/2;
+  const ym = su13.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0;
+  su13.forEach((y,xi) => { num+=(xi-xm)*(y-ym); den+=(xi-xm)**2; });
+  const slope = den ? num/den : 0;
+  const trendDir = slope > 50 ? '상승' : slope < -50 ? '하락' : '보합';
+
+  const r4s = su13.slice(-4).reduce((a,b)=>a+b,0);
+  const p4s = su13.slice(-8,-4).reduce((a,b)=>a+b,0);
+  const overallChg = p4s ? (r4s-p4s)/p4s*100 : 0;
+
+  return { regionName, total, topCats, catR, catP, topProcs: procArr.slice(0,8),
+           wowUp, wowDn, yoyUp, trendDir, overallChg,
+           recentDate: dates[recentIdx] };
+}
+
+function _buildInsightHTML(a) {
+  const tdCol = a.trendDir==='상승'?'#3fb950':a.trendDir==='하락'?'#f85149':'#8b949e';
+  const chgCol = a.overallChg>=0?'#3fb950':'#f85149';
+  const chgS = (a.overallChg>=0?'+':'')+a.overallChg.toFixed(1)+'%';
+  const tdIco = a.trendDir==='상승'?'▲':a.trendDir==='하락'?'▼':'→';
+
+  const prevTotal = Object.values(a.catP).reduce((s,v)=>s+v,0);
+
+  // 카테고리 행
+  const catRows = a.topCats.slice(0,6).map(([cat,v]) => {
+    const pct  = a.total ? v/a.total*100 : 0;
+    const pp   = pct - (prevTotal ? (a.catP[cat]||0)/prevTotal*100 : 0);
+    const col  = _cc(cat);
+    const ppC  = pp>=0?'#3fb950':'#f85149';
+    const ppS  = (pp>=0?'▲':'▼')+Math.abs(pp).toFixed(1)+'pp';
+    return `<tr>
+      <td class="sl"><span class="sd" style="background:${col}"></span>${cat}</td>
+      <td class="sb"><div class="sbw"><div class="sbi" style="width:${Math.min(pct,100).toFixed(1)}%;background:${col}22;border-left:3px solid ${col}"></div></div></td>
+      <td class="sp">${pct.toFixed(1)}%&thinsp;<span style="color:${ppC};font-size:10px">${ppS}</span></td>
+      <td class="sv">${v.toLocaleString('ko-KR')}</td></tr>`;
+  }).join('');
+
+  // 시술 행
+  const procRows = a.topProcs.map((p,i) => {
+    const pct = a.total ? p.sum/a.total*100 : 0;
+    const col = _cc(p.cat);
+    const wow = p.prev>0 ? (p.sum-p.prev)/p.prev*100 : null;
+    const wowSpan = wow!==null
+      ? `<span class="swow" style="color:${wow>=0?'#3fb950':'#f85149'}">WoW ${wow>=0?'+':''}${wow.toFixed(0)}%</span>`
+      : '';
+    return `<tr>
+      <td class="sl"><span class="srk">#${i+1}</span><span class="sd" style="background:${col}"></span><span class="sname">${p.proc}</span>${wowSpan}</td>
+      <td class="sb"><div class="sbw"><div class="sbi" style="width:${Math.min(pct*3,100).toFixed(1)}%;background:${col}22;border-left:3px solid ${col}"></div></div></td>
+      <td class="sp">${pct.toFixed(1)}%</td>
+      <td class="sv">${p.sum.toLocaleString('ko-KR')}</td></tr>`;
+  }).join('');
+
+  const chips = (arr, cls, fmt) => arr.map(x=>`<span class="ic ${cls}">${fmt(x)}</span>`).join('');
+  const wu = chips(a.wowUp, 'up', x=>`▲ ${x.proc} +${x.wow.toFixed(0)}%`);
+  const wd = chips(a.wowDn, 'dn', x=>`▼ ${x.proc} ${x.wow.toFixed(0)}%`);
+  const yu = chips(a.yoyUp, 'yy', x=>`↑ ${x.proc} YoY +${x.yoy.toFixed(0)}%`);
+
+  return `<div class="ri" id="ri-${a.regionName}">
+<div class="rih"><div class="rit">📊 ${a.regionName} 트렌드 분석</div><div class="rim">${a.recentDate} 기준 · 최근 4주</div></div>
+<div class="risummary">
+  <span class="ritb" style="color:${tdCol};border-color:${tdCol}33;background:${tdCol}11">${tdIco} ${a.trendDir} 추세</span>
+  <span class="ic" style="color:${chgCol}">4주 전주기 대비 ${chgS}</span>
+</div>
+<div class="rig">
+  <div class="ss">
+    <div class="st">📁 카테고리 비중 <span class="stot">최근4주 합계 ${a.total.toLocaleString('ko-KR')}</span></div>
+    <table class="stbl"><colgroup><col style="width:110px"><col style="width:auto"><col style="width:88px"><col style="width:56px"></colgroup>
+    <thead><tr><th class="sl">카테고리</th><th></th><th class="sp">비중</th><th class="sv">건수</th></tr></thead>
+    <tbody>${catRows}</tbody></table>
+  </div>
+  <div class="ss">
+    <div class="st">💊 시술 비중 Top8</div>
+    <table class="stbl"><colgroup><col style="width:auto"><col style="width:80px"><col style="width:46px"><col style="width:56px"></colgroup>
+    <thead><tr><th class="sl">시술명</th><th></th><th class="sp">비중</th><th class="sv">건수</th></tr></thead>
+    <tbody>${procRows}</tbody></table>
+  </div>
+</div>
+<div class="risig">
+  <div class="sirow"><span class="silbl">WoW 급등</span>${wu}</div>
+  <div class="sirow"><span class="silbl">WoW 급락</span>${wd}</div>
+  <div class="sirow"><span class="silbl">YoY 주목</span>${yu}</div>
+</div></div>`;
+}
 
 function renderInsight() {
   const el = document.getElementById('insightSection');
   if (!el) return;
-  el.innerHTML = REGION_INSIGHTS[currentRegion] || '';
+  const a = _computeInsight(currentRegion);
+  el.innerHTML = a ? _buildInsightHTML(a) : '';
 }
+
 
 const COLORS = [
   '#f97b5e','#4ade80','#60a5fa','#f59e0b','#a78bfa',
@@ -856,7 +1040,273 @@ function setWowSort(col) {
 }
 
 // Start
+// ═══════════════════════════════════════════════════
+//  RAW EXCEL UPLOAD — 전체 대시보드 자동 갱신
+// ═══════════════════════════════════════════════════
+
+function openUploadModal() {
+  document.getElementById('uploadModal').style.display = 'flex';
+  document.getElementById('uploadStatus').innerHTML = '';
+  document.getElementById('uploadFileInfo').textContent = '';
+  document.getElementById('uploadInput').value = '';
+  document.getElementById('uploadPreview').style.display = 'none';
+}
+function closeUploadModal() {
+  document.getElementById('uploadModal').style.display = 'none';
+}
+
+// 드래그앤드롭
+function setupUploadDrop() {
+  const zone = document.getElementById('uploadDropZone');
+  ['dragenter','dragover'].forEach(ev => {
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  });
+  ['dragleave','drop'].forEach(ev => {
+    zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag-over'); });
+  });
+  zone.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+}
+
+function handleFile(file) {
+  if (!file.name.match(/\.xlsx?$/i)) {
+    setUploadStatus('error', '⚠️ .xlsx 또는 .xls 파일만 지원합니다.');
+    return;
+  }
+  document.getElementById('uploadFileInfo').textContent = `📄 ${file.name}  (${(file.size/1024).toFixed(1)} KB)`;
+  setUploadStatus('loading', '파일 분석 중...');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+      previewAndApply(wb, file.name);
+    } catch(err) {
+      setUploadStatus('error', '❌ 파일 파싱 오류: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── 날짜 파싱 ──────────────────────────────────────
+function parseExcelDate(val) {
+  if (!val) return null;
+  if (typeof val === 'number') {
+    // Excel serial → YYYY-MM-DD
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    const y = d.getUTCFullYear(), mo = String(d.getUTCMonth()+1).padStart(2,'0'), dy = String(d.getUTCDate()).padStart(2,'0');
+    return `${y}-${mo}-${dy}`;
+  }
+  const s = String(val).trim();
+  // "2026. 4. 20." 형식
+  const m1 = s.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  if (m1) return `${m1[1]}-${m1[2].padStart(2,'0')}-${m1[3].padStart(2,'0')}`;
+  // "2026-04-20" 형식
+  const m2 = s.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (m2) return `${m2[1]}-${m2[2].padStart(2,'0')}-${m2[3].padStart(2,'0')}`;
+  return null;
+}
+
+// ── 미리보기 + 적용 ─────────────────────────────────
+function previewAndApply(wb, fname) {
+  const stats = { regions: [], newDates: [], newRegions: [], updatedRows: 0, newRows: 0 };
+  const tempData = JSON.parse(JSON.stringify(DASHBOARD_DATA)); // deep copy
+
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    if (!rows || rows.length < 2) continue;
+
+    const region = sheetName.trim();
+    stats.regions.push(region);
+
+    // 1행: 날짜 헤더 파싱 (col 0=카테고리, col 1=시술명, col 2~=날짜)
+    const headerRow = rows[0];
+    const colDateMap = {}; // colIdx → dateStr
+    for (let c = 2; c < headerRow.length; c++) {
+      const ds = parseExcelDate(headerRow[c]);
+      if (ds) colDateMap[c] = ds;
+    }
+
+    // 새 날짜 추가
+    for (const ds of Object.values(colDateMap)) {
+      if (!tempData.dates.includes(ds)) {
+        tempData.dates.push(ds);
+        stats.newDates.push(ds);
+      }
+    }
+    tempData.dates.sort();
+
+    // dateStr → 인덱스 맵 (재계산)
+    const dateIdxMap = {};
+    tempData.dates.forEach((d, i) => dateIdxMap[d] = i);
+
+    // 새 지역
+    if (!tempData.regions[region]) {
+      tempData.regions[region] = [];
+      stats.newRegions.push(region);
+    }
+
+    // 기존 (cat,proc) → itemIdx 맵
+    const itemMap = {};
+    tempData.regions[region].forEach(([cat, proc], i) => {
+      itemMap[`${cat.trim()}|${proc.trim()}`] = i;
+    });
+
+    // 데이터 행 처리
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row[0] && !row[1]) continue;
+      const cat  = String(row[0] || '').trim();
+      const proc = String(row[1] || '').trim();
+      if (!cat || !proc) continue;
+
+      const key = `${cat}|${proc}`;
+      let itemIdx = itemMap[key];
+
+      if (itemIdx === undefined) {
+        // 신규 시술
+        tempData.regions[region].push([cat, proc, {}]);
+        itemIdx = tempData.regions[region].length - 1;
+        itemMap[key] = itemIdx;
+        stats.newRows++;
+      }
+
+      // 각 날짜 값 주입
+      for (const [c, ds] of Object.entries(colDateMap)) {
+        const val = row[parseInt(c)];
+        if (val !== null && val !== undefined && !isNaN(val) && val > 0) {
+          const di = dateIdxMap[ds];
+          if (di !== undefined) {
+            tempData.regions[region][itemIdx][2][String(di)] = Math.round(val);
+            stats.updatedRows++;
+          }
+        }
+      }
+    }
+  }
+
+  // 미리보기 표시
+  const prevEl = document.getElementById('uploadPreview');
+  prevEl.style.display = 'block';
+  prevEl.innerHTML = `
+    <div class="uprev-title">📋 업로드 미리보기</div>
+    <div class="uprev-grid">
+      <div class="uprev-item"><span class="uprev-n">${stats.regions.length}</span><span class="uprev-l">처리 시트(지역)</span></div>
+      <div class="uprev-item"><span class="uprev-n">${stats.newRegions.length}</span><span class="uprev-l">신규 지역</span></div>
+      <div class="uprev-item"><span class="uprev-n">${stats.newDates.length}</span><span class="uprev-l">신규 주차</span></div>
+      <div class="uprev-item"><span class="uprev-n">${stats.newRows}</span><span class="uprev-l">신규 시술</span></div>
+      <div class="uprev-item"><span class="uprev-n">${stats.updatedRows.toLocaleString('ko-KR')}</span><span class="uprev-l">업데이트 셀</span></div>
+      <div class="uprev-item"><span class="uprev-n">${tempData.dates.length}</span><span class="uprev-l">총 주차</span></div>
+    </div>
+    ${stats.newRegions.length ? `<div class="uprev-tag">➕ 신규 지역: ${stats.newRegions.join(', ')}</div>` : ''}
+    ${stats.newDates.length ? `<div class="uprev-tag">📅 신규 주차: ${stats.newDates.slice(-3).join(', ')}${stats.newDates.length>3?' 등':''}</div>` : ''}
+    <div class="uprev-btns">
+      <button class="btn-apply" onclick="applyUpload()">✅ 적용하기</button>
+      <button class="btn-cancel" onclick="closeUploadModal()">취소</button>
+    </div>`;
+
+  // 임시 저장
+  window._pendingData = tempData;
+  setUploadStatus('ok', `✅ 파일 분석 완료 — ${wb.SheetNames.length}개 시트`);
+}
+
+function applyUpload() {
+  if (!window._pendingData) return;
+  DASHBOARD_DATA = window._pendingData;
+  window._pendingData = null;
+
+  // 날짜 범위 업데이트
+  const dates = DASHBOARD_DATA.dates;
+  document.getElementById('dataRange').textContent = `${dates[0]} ~ ${dates[dates.length-1]}`;
+
+  // 지역 탭 재렌더 (신규 지역 포함)
+  rebuildRegionTabs();
+
+  // 전체 렌더
+  renderInsight();
+  renderAll();
+  if (currentPage === 'top50cum') renderCumTable();
+  if (currentPage === 'top50wow') renderWoWTable();
+
+  closeUploadModal();
+  showToast('📊 데이터가 업데이트되었습니다.');
+}
+
+function rebuildRegionTabs() {
+  const tabsEl = document.getElementById('regionTabs');
+  const existing = new Set([...tabsEl.querySelectorAll('.region-tab')].map(t => t.textContent.trim()));
+  Object.keys(DASHBOARD_DATA.regions).forEach(r => {
+    if (!existing.has(r)) {
+      const tab = document.createElement('div');
+      tab.className = 'region-tab';
+      tab.textContent = r;
+      tab.onclick = () => setRegion(r);
+      tabsEl.appendChild(tab);
+    }
+  });
+}
+
+function setUploadStatus(type, msg) {
+  const el = document.getElementById('uploadStatus');
+  el.className = 'upload-status ' + type;
+  el.innerHTML = msg;
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3000);
+}
+
+
+// 드래그앤드롭 초기화
+window.addEventListener("DOMContentLoaded", setupUploadDrop);
+
 loadData();
 </script>
+
+<!-- ═══ UPLOAD MODAL ═══ -->
+<div id="uploadModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center;">
+  <div class="umodal">
+    <div class="umodal-header">
+      <div class="umodal-title">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style="color:var(--accent)"><path d="M8 1a.5.5 0 0 1 .5.5v7.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 9.293V1.5A.5.5 0 0 1 8 1z"/><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.1a.5.5 0 0 1 1 0v2.1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.1a.5.5 0 0 1 .5-.5z"/></svg>
+        RAW 엑셀 업로드
+      </div>
+      <button class="umodal-close" onclick="closeUploadModal()">✕</button>
+    </div>
+
+    <div class="umodal-guide">
+      <div class="guide-title">📋 파일 형식</div>
+      <div class="guide-body">
+        <div>• 시트명 = <strong>지역명</strong> (예: 강남서초, 인천, 송파…)</div>
+        <div>• A열: 카테고리 &nbsp;|&nbsp; B열: 시술명 &nbsp;|&nbsp; C열~: 날짜(주차별)</div>
+        <div>• 1행: 헤더 (<code>2026. 5. 4.</code> 형식)</div>
+        <div>• 새 지역·새 주차 자동 추가 &nbsp;|&nbsp; 기존 데이터 누적 병합</div>
+      </div>
+    </div>
+
+    <div id="uploadDropZone" class="upload-drop-zone" onclick="document.getElementById('uploadInput').click()">
+      <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" style="color:var(--text2);margin-bottom:8px"><path d="M8 1a.5.5 0 0 1 .5.5v7.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 9.293V1.5A.5.5 0 0 1 8 1z"/><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.1a.5.5 0 0 1 1 0v2.1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.1a.5.5 0 0 1 .5-.5z"/></svg>
+      <div style="font-size:14px;font-weight:600;color:var(--text)">파일을 여기에 드래그하거나 클릭하여 선택</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px">.xlsx / .xls 지원</div>
+      <input type="file" id="uploadInput" accept=".xlsx,.xls" style="display:none" onchange="if(this.files[0])handleFile(this.files[0])">
+    </div>
+
+    <div id="uploadFileInfo" style="font-size:12px;color:var(--text2);margin-top:8px;min-height:18px;text-align:center"></div>
+    <div id="uploadStatus" class="upload-status" style="margin-top:6px"></div>
+    <div id="uploadPreview" style="display:none;margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
 </body>
 </html>
