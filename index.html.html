@@ -183,6 +183,25 @@
   .ic.yy{ background:rgba(167,139,250,.1);color:#a78bfa; border-color:rgba(167,139,250,.3); }
 
 
+  /* ═══ SU 마스킹 / 병원 전달용 토글 ═══ */
+  .su-toggle-wrap { display:flex; align-items:center; gap:8px; padding:5px 12px; border-radius:8px; background:var(--badge-bg); border:1px solid var(--border); cursor:pointer; user-select:none; transition:all 0.15s; }
+  .su-toggle-wrap:hover { border-color:var(--text2); }
+  .su-toggle-wrap.on { background:rgba(249,123,94,0.12); border-color:var(--accent); }
+  .su-toggle-label { font-size:12px; font-weight:600; color:var(--text2); }
+  .su-toggle-wrap.on .su-toggle-label { color:var(--accent); }
+  .su-switch { position:relative; width:30px; height:16px; background:var(--border); border-radius:10px; transition:background 0.15s; flex-shrink:0; }
+  .su-switch::after { content:''; position:absolute; left:2px; top:2px; width:12px; height:12px; background:#fff; border-radius:50%; transition:transform 0.15s; }
+  .su-toggle-wrap.on .su-switch { background:var(--accent); }
+  .su-toggle-wrap.on .su-switch::after { transform:translateX(14px); }
+  .masked { color:#666 !important; font-style:italic; }
+  body.su-hidden .hide-when-su-off { display:none !important; }
+
+  /* WoW 100건+ 필터 */
+  .wow-filter-wrap { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; background:var(--badge-bg); border:1px solid var(--border); cursor:pointer; user-select:none; font-size:12px; color:var(--text2); transition:all 0.15s; }
+  .wow-filter-wrap:hover { border-color:var(--text2); }
+  .wow-filter-wrap.on { background:rgba(249,123,94,0.12); border-color:var(--accent); color:var(--accent); }
+  .wow-filter-wrap input { margin:0; cursor:pointer; accent-color:var(--accent); }
+
   /* ═══ UPLOAD FEATURE ═══ */
   .upload-btn { display:flex; align-items:center; gap:6px; padding:6px 14px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; transition:opacity .15s; }
   .upload-btn:hover { opacity:.85; }
@@ -229,6 +248,10 @@
     RAW 업로드
   </button>
   <div class="spacer"></div>
+  <div class="su-toggle-wrap" id="suToggleBtn" onclick="toggleSuHidden()" title="병원 전달용 모드: SU(DB건수) 절대값을 가립니다. 증감률(%)·트렌드는 유지됩니다.">
+    <span class="su-toggle-label">🏥 병원 전달용</span>
+    <div class="su-switch"></div>
+  </div>
   <div class="data-range" id="dataRange">데이터 로딩 중...</div>
   <div id="storageBadge" style="display:none;font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(63,185,80,.12);color:#3fb950;border:1px solid rgba(63,185,80,.3);cursor:pointer;" onclick="resetToBuiltin()" title="클릭 시 내장 데이터로 초기화">
     💾 업데이트됨 ✕
@@ -314,6 +337,10 @@
           <div class="title">최근 WoW Top 50 시술 (YoY 포함)</div>
           <div class="subtitle" id="wowSubtitle"></div>
         </div>
+        <label class="wow-filter-wrap" id="wowMin100Wrap">
+          <input type="checkbox" id="wowMin100Chk" onchange="toggleWowMin100()">
+          <span>최근주 100건 이상만</span>
+        </label>
       </div>
       <div style="overflow-x:auto;">
         <table id="wowTable">
@@ -347,6 +374,36 @@ let selectedProcs = [];
 let currentPeriodWeeks = 12;
 let activeCat = 'all';
 let mainChart = null;
+let suHidden = false;        // 병원 전달용 모드: 절대 건수 마스킹
+let wowMin100 = false;       // WoW Top50: 최근주 100건 이상만
+
+// ═══ 마스킹 헬퍼 ═══
+const MASK = '***';
+function fmtSU(n) {
+  // 절대 건수를 표시. suHidden=true면 마스킹.
+  if (suHidden) return MASK;
+  return fmt(n);
+}
+function maskedSpan(htmlContent) {
+  // suHidden=true이면 마스킹된 내용으로 대체
+  return suHidden ? `<span class="masked">${MASK}</span>` : htmlContent;
+}
+function toggleSuHidden() {
+  suHidden = !suHidden;
+  const btn = document.getElementById('suToggleBtn');
+  if (btn) btn.classList.toggle('on', suHidden);
+  document.body.classList.toggle('su-hidden', suHidden);
+  // 전체 재렌더
+  renderAll();
+  if (currentPage === 'top50cum') renderCumTable();
+  if (currentPage === 'top50wow') renderWoWTable();
+}
+function toggleWowMin100() {
+  wowMin100 = document.getElementById('wowMin100Chk').checked;
+  const wrap = document.getElementById('wowMin100Wrap');
+  if (wrap) wrap.classList.toggle('on', wowMin100);
+  renderWoWTable();
+}
 
 // 색상 팔레트
 
@@ -448,7 +505,7 @@ function _buildInsightHTML(a) {
       <td class="sl"><span class="sd" style="background:${col}"></span>${cat}</td>
       <td class="sb"><div class="sbw"><div class="sbi" style="width:${Math.min(pct,100).toFixed(1)}%;background:${col}22;border-left:3px solid ${col}"></div></div></td>
       <td class="sp">${pct.toFixed(1)}%&thinsp;<span style="color:${ppC};font-size:10px">${ppS}</span></td>
-      <td class="sv">${v.toLocaleString('ko-KR')}</td></tr>`;
+      <td class="sv">${suHidden ? MASK : v.toLocaleString('ko-KR')}</td></tr>`;
   }).join('');
 
   // 시술 행
@@ -463,7 +520,7 @@ function _buildInsightHTML(a) {
       <td class="sl"><span class="srk">#${i+1}</span><span class="sd" style="background:${col}"></span><span class="sname">${p.proc}</span>${wowSpan}</td>
       <td class="sb"><div class="sbw"><div class="sbi" style="width:${Math.min(pct*3,100).toFixed(1)}%;background:${col}22;border-left:3px solid ${col}"></div></div></td>
       <td class="sp">${pct.toFixed(1)}%</td>
-      <td class="sv">${p.sum.toLocaleString('ko-KR')}</td></tr>`;
+      <td class="sv">${suHidden ? MASK : p.sum.toLocaleString('ko-KR')}</td></tr>`;
   }).join('');
 
   const chips = (arr, cls, fmt) => arr.map(x=>`<span class="ic ${cls}">${fmt(x)}</span>`).join('');
@@ -479,7 +536,7 @@ function _buildInsightHTML(a) {
 </div>
 <div class="rig">
   <div class="ss">
-    <div class="st">📁 카테고리 비중 <span class="stot">최근4주 합계 ${a.total.toLocaleString('ko-KR')}</span></div>
+    <div class="st">📁 카테고리 비중 <span class="stot">최근4주 합계 ${suHidden ? MASK : a.total.toLocaleString('ko-KR')}</span></div>
     <table class="stbl"><colgroup><col style="width:110px"><col style="width:auto"><col style="width:88px"><col style="width:56px"></colgroup>
     <thead><tr><th class="sl">카테고리</th><th></th><th class="sp">비중</th><th class="sv">건수</th></tr></thead>
     <tbody>${catRows}</tbody></table>
@@ -580,6 +637,11 @@ function init() {
       renderMainChart();
     };
   });
+
+  // 토글 초기 상태 동기화
+  const _suBtn = document.getElementById('suToggleBtn');
+  if (_suBtn) _suBtn.classList.toggle('on', suHidden);
+  document.body.classList.toggle('su-hidden', suHidden);
 
   renderAll();
 }
@@ -709,8 +771,8 @@ function renderSummary() {
     const shareStr = shareVal != null ? `<span class="share-badge">(카테고리 내 ${shareVal.toFixed(1)}%)</span>` : '';
     html += `<div class="summary-card">
       <div class="cat">${cat}</div>
-      <div class="insight">최근 4주 <strong>${fmt(recent4)}</strong>건 ${chgStr}<br>
-      주요: ${top?.proc || '-'} ${shareStr}<br>(${fmt(top?.sum || 0)}건)</div>
+      <div class="insight">최근 4주 <strong>${fmtSU(recent4)}</strong>건 ${chgStr}<br>
+      주요: ${top?.proc || '-'} ${shareStr}<br>(${fmtSU(top?.sum || 0)}건)</div>
     </div>`;
   });
   html += '</div>';
@@ -914,7 +976,7 @@ function renderMainChart() {
           bodyColor: '#e6edf3',
           callbacks: {
             title: (items) => items[0].label,
-            label: (item) => ` ${item.dataset.label}: ${fmt(item.raw)}건`
+            label: (item) => ` ${item.dataset.label}: ${suHidden ? MASK : fmt(item.raw) + '건'}`
           }
         }
       },
@@ -926,7 +988,7 @@ function renderMainChart() {
         y: {
           grid: { color: '#21262d' },
           ticks: { color: '#8b949e', font: { size: 11 },
-            callback: v => v.toLocaleString('ko-KR')
+            callback: v => suHidden ? '' : v.toLocaleString('ko-KR')
           }
         }
       }
@@ -976,9 +1038,9 @@ function renderCumTable() {
       <td><span class="rank-badge ${rank <= 3 ? 'top3' : ''}">${rank}</span></td>
       <td>${r.proc}</td>
       <td><span class="cat-tag">${r.cat}</span></td>
-      <td class="right">${fmt(r.total)}</td>
-      <td class="right">${fmt(r.prev)}</td>
-      <td class="right">${fmt(r.cur)}</td>
+      <td class="right">${fmtSU(r.total)}</td>
+      <td class="right">${fmtSU(r.prev)}</td>
+      <td class="right">${fmtSU(r.cur)}</td>
       <td class="right ${cls}">${wowStr}</td>
     </tr>`;
   }).join('');
@@ -1013,6 +1075,11 @@ function renderWoWTable() {
     return { cat, proc, cur, prev, wow, yoyCur, yoy };
   }).filter(r => r != null && r.wow != null);
 
+  // 최근주 100건 이상만 필터
+  if (wowMin100) {
+    rows = rows.filter(r => r.cur >= 100);
+  }
+
   // 정렬
   rows.sort((a, b) => {
     let av = a[wowSortCol], bv = b[wowSortCol];
@@ -1045,10 +1112,10 @@ function renderWoWTable() {
       <td><span class="rank-badge ${rank <= 3 ? 'top3' : ''}">${rank}</span></td>
       <td>${r.proc}</td>
       <td><span class="cat-tag">${r.cat}</span></td>
-      <td class="right">${fmt(r.prev)}</td>
-      <td class="right">${fmt(r.cur)}</td>
+      <td class="right">${fmtSU(r.prev)}</td>
+      <td class="right">${fmtSU(r.cur)}</td>
       <td class="right ${wCls}">${wowStr}</td>
-      <td class="right">${r.yoyCur != null ? fmt(r.yoyCur) : '-'}</td>
+      <td class="right">${r.yoyCur != null ? fmtSU(r.yoyCur) : '-'}</td>
       <td class="right ${yCls}">${yoyStr}</td>
     </tr>`;
   }).join('');
