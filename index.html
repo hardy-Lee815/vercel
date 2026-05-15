@@ -512,7 +512,7 @@ function _computeInsight(regionName) {
   const p4s = su13.slice(-8,-4).reduce((a,b)=>a+b,0);
   const overallChg = p4s ? (r4s-p4s)/p4s*100 : 0;
 
-  return { regionName, total, topCats, catR, catP, topProcs: procArr.slice(0,8),
+  return { regionName, total, topCats, catR, catP, topProcs: procArr.slice(0,10),
            wowUp, wowDn, yoyUp, trendDir, overallChg,
            recentDate: dates[recentIdx] };
 }
@@ -573,7 +573,7 @@ function _buildInsightHTML(a) {
     <tbody>${catRows}</tbody></table>
   </div>
   <div class="ss">
-    <div class="st">💊 시술 비중 Top8</div>
+    <div class="st">💊 시술 비중 Top10</div>
     <table class="stbl"><colgroup><col style="width:auto"><col style="width:80px"><col style="width:46px"><col style="width:56px"></colgroup>
     <thead><tr><th class="sl">시술명</th><th></th><th class="sp">비중</th><th class="sv">건수</th></tr></thead>
     <tbody>${procRows}</tbody></table>
