@@ -347,10 +347,10 @@
               <th style="width:50px;">순위</th>
               <th>시술명</th>
               <th>카테고리</th>
+              <th class="right">WoW</th>
               <th class="right">누적 합계</th>
               <th class="right">전주</th>
               <th class="right">최근주</th>
-              <th class="right">WoW</th>
             </tr>
           </thead>
           <tbody id="cumTableBody"><tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
@@ -1175,10 +1175,10 @@ function renderCumTable() {
       <td><span class="rank-badge ${rank <= 3 ? 'top3' : ''}">${rank}</span></td>
       <td>${r.proc}</td>
       <td><span class="cat-tag">${r.cat}</span></td>
+      <td class="right ${cls}">${wowStr}</td>
       <td class="right">${fmtSU(r.total)}</td>
       <td class="right">${fmtSU(r.prev)}</td>
       <td class="right">${fmtSU(r.cur)}</td>
-      <td class="right ${cls}">${wowStr}</td>
     </tr>`;
   }).join('');
 }
@@ -1229,8 +1229,8 @@ function renderWoWTable() {
 
   // 헤더 렌더
   const thead = document.querySelector('#wowTable thead tr');
-  thead.innerHTML = ['#','시술명','카테고리','전주','최근주','WoW','전년 동기','YoY'].map((h, i) => {
-    const cols = [null,'proc','cat','prev','cur','wow','yoyCur','yoy'];
+  thead.innerHTML = ['#','시술명','카테고리','WoW','YoY','전년 동기','전주','최근주'].map((h, i) => {
+    const cols = [null,'proc','cat','wow','yoy','yoyCur','prev','cur'];
     const col = cols[i];
     if (!col) return `<th style="width:50px;">${h}</th>`;
     const isActive = wowSortCol === col;
@@ -1249,11 +1249,11 @@ function renderWoWTable() {
       <td><span class="rank-badge ${rank <= 3 ? 'top3' : ''}">${rank}</span></td>
       <td>${r.proc}</td>
       <td><span class="cat-tag">${r.cat}</span></td>
+      <td class="right ${wCls}">${wowStr}</td>
+      <td class="right ${yCls}">${yoyStr}</td>
+      <td class="right">${r.yoyCur != null ? fmtSU(r.yoyCur) : '-'}</td>
       <td class="right">${fmtSU(r.prev)}</td>
       <td class="right">${fmtSU(r.cur)}</td>
-      <td class="right ${wCls}">${wowStr}</td>
-      <td class="right">${r.yoyCur != null ? fmtSU(r.yoyCur) : '-'}</td>
-      <td class="right ${yCls}">${yoyStr}</td>
     </tr>`;
   }).join('');
 }
