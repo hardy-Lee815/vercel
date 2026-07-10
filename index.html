@@ -259,6 +259,54 @@
   .ov-wow.flat    { color:var(--text2); }
   .ov-section-title { font-size:13px; font-weight:700; margin:16px 0 10px; display:flex; align-items:center; gap:8px; }
 
+
+  /* ═══ 지역 비교 (Cross-Region) ═══ */
+  .cr-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .cr-search-wrap { position:relative; }
+  .cr-search-input { padding:8px 14px; border-radius:10px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text); font-size:13px; width:260px; outline:none;
+    transition:border-color .15s; }
+  .cr-search-input:focus { border-color:var(--accent); }
+  .cr-dropdown { position:absolute; top:calc(100%+4px); left:0; width:300px; max-height:240px;
+    overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    z-index:200; display:none; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+  .cr-dropdown.open { display:block; }
+  .cr-drop-item { padding:8px 14px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:8px; }
+  .cr-drop-item:hover { background:var(--surface2); }
+  .cr-drop-cat { font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(88,166,255,.15);
+    color:var(--accent); font-weight:700; flex-shrink:0; }
+  .cr-selected-wrap { display:flex; align-items:center; gap:8px; flex:1; }
+  .cr-selected-tag { display:inline-flex; align-items:center; gap:6px; padding:5px 12px;
+    background:rgba(88,166,255,.12); border:1px solid rgba(88,166,255,.35); border-radius:20px;
+    font-size:13px; font-weight:700; color:var(--accent); }
+  .cr-selected-tag .cr-remove { cursor:pointer; opacity:.6; font-size:14px; line-height:1; }
+  .cr-selected-tag .cr-remove:hover { opacity:1; }
+  .cr-placeholder { font-size:13px; color:var(--text2); }
+
+  .cr-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; margin-bottom:16px; }
+  .cr-card { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; position:relative; overflow:hidden; cursor:pointer; transition:border-color .15s; }
+  .cr-card:hover { border-color:var(--accent); }
+  .cr-card .cr-region { font-size:11px; color:var(--text2); font-weight:600; margin-bottom:4px; }
+  .cr-card .cr-su { font-size:20px; font-weight:800; }
+  .cr-card .cr-sub { font-size:11px; color:var(--text2); margin-top:3px; line-height:1.5; }
+  .cr-card .cr-bar { position:absolute; bottom:0; left:0; height:3px; transition:width .4s ease; }
+  .cr-card .cr-rank { position:absolute; top:10px; right:10px; font-size:10px; font-weight:700;
+    color:var(--text2); }
+  .cr-card .cr-rank.top1 { color:gold; }
+  .cr-card .cr-rank.top2 { color:#c0c0c0; }
+  .cr-card .cr-rank.top3 { color:#cd7f32; }
+
+  .cr-bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:900px) { .cr-bottom-grid { grid-template-columns:1fr; } }
+
+  .cr-th { padding:8px 10px; text-align:right; font-size:11px; color:var(--text2); font-weight:600;
+    border-bottom:1px solid var(--border); }
+  .cr-th:first-child { text-align:left; }
+  .cr-td { padding:7px 10px; border-bottom:1px solid rgba(48,54,61,.5); font-size:12px; text-align:right; }
+  .cr-td:first-child { text-align:left; font-weight:600; }
+  .cr-empty { text-align:center; padding:40px; color:var(--text2); font-size:14px; }
+
 </style>
 </head>
 <body>
@@ -290,6 +338,7 @@
   <div class="page-tab" data-page="trend">📈 시술별 트렌드</div>
   <div class="page-tab" data-page="top50cum">📊 누적 Top50 WoW</div>
   <div class="page-tab" data-page="top50wow">🔥 최근 WoW Top50</div>
+  <div class="page-tab" data-page="crossregion">🗺️ 지역별 수요 비교</div>
 </div>
 
 <div class="content">
@@ -328,6 +377,64 @@
       </div>
       <div class="cat-filter" id="catFilter"></div>
       <div class="procedure-grid" id="procedureGrid"></div>
+    </div>
+  </div>
+
+  <!-- SHEET 5: 지역별 수요 비교 -->
+  <div class="page-content" id="page-crossregion">
+    <!-- 툴바: 검색 + 기간 선택 -->
+    <div class="cr-toolbar">
+      <div class="cr-search-wrap">
+        <input type="text" id="crProcInput" class="cr-search-input"
+          placeholder="시술명 검색... (예: 사각턱보톡스)"
+          oninput="crSearchProc()" onkeydown="crKeyNav(event)" autocomplete="off">
+        <div class="cr-dropdown" id="crDropdown"></div>
+      </div>
+      <div class="cr-selected-wrap" id="crSelectedWrap">
+        <span class="cr-placeholder">← 시술을 선택하면 전 지역 수요를 비교합니다</span>
+      </div>
+      <div class="period-btns" style="margin-left:auto;flex-shrink:0">
+        <div class="period-btn active" data-crw="13" onclick="setCrPeriod(13)">13주</div>
+        <div class="period-btn" data-crw="26" onclick="setCrPeriod(26)">26주</div>
+        <div class="period-btn" data-crw="0" onclick="setCrPeriod(0)">전체</div>
+      </div>
+    </div>
+
+    <!-- 지역별 요약 카드 -->
+    <div id="crCards" class="cr-cards">
+      <div class="cr-empty" style="grid-column:1/-1">시술을 검색해 선택하세요</div>
+    </div>
+
+    <!-- 추이 라인 차트 -->
+    <div class="chart-container" id="crLineWrap" style="display:none;margin-bottom:14px">
+      <div class="section-header" style="margin-bottom:12px">
+        <div>
+          <div class="chart-title" id="crLineTitle"></div>
+          <div class="chart-sub" id="crLineSub"></div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="crLineChart"></canvas></div>
+      <div class="legend-bar" id="crLineLegend"></div>
+    </div>
+
+    <!-- 바 차트 + 상세 테이블 -->
+    <div class="cr-bottom-grid" id="crBottomGrid" style="display:none">
+      <div class="chart-container">
+        <div class="chart-title">최근 4주 지역별 SU</div>
+        <div class="chart-sub" id="crBarSub"></div>
+        <div style="position:relative;height:260px;margin-top:12px">
+          <canvas id="crBarChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">지역별 상세 지표</div>
+        <div class="table-wrap" style="margin-top:10px;overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr id="crTableHead"></tr></thead>
+            <tbody id="crTableBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -426,6 +533,7 @@ function toggleSuHidden() {
   // 전체 재렌더
   renderAll();
   if (currentPage === 'overview')  renderOverview();
+  if (currentPage === 'crossregion' && crCurrentProc) crRenderAll();
   if (currentPage === 'top50cum') renderCumTable();
   if (currentPage === 'top50wow') renderWoWTable();
 }
@@ -700,6 +808,7 @@ function setPage(p) {
   if (p === 'trend')    { renderCatFilter(); renderProcGrid(); renderMainChart(); }
   if (p === 'top50cum') renderCumTable();
   if (p === 'top50wow') renderWoWTable();
+  if (p === 'crossregion') { /* 탭 전환 시 선택 유지 */ }
 }
 
 function getItems() {
@@ -1504,6 +1613,326 @@ function showToast(msg) {
 
 // 드래그앤드롭 초기화
 window.addEventListener("DOMContentLoaded", setupUploadDrop);
+
+// ════════════════════════════════════════════════════════
+//  지역별 수요 비교 (Cross-Region Demand View)
+// ════════════════════════════════════════════════════════
+let crCurrentProc = null;
+let crPeriodWeeks = 13;
+let crLineChart   = null;
+let crBarChart    = null;
+let crDropIdx     = -1;
+
+const REGION_COLORS = {
+  '전지역':    '#8b949e',
+  '강남서초':  '#f97b5e',
+  '인천_전체': '#60a5fa',
+  '인천_연수구':'#38bdf8',
+  '마포':      '#4ade80',
+  '중구':      '#a78bfa',
+  '송파':      '#fbbf24',
+  '부산':      '#f472b6',
+  '고양':      '#34d399',
+};
+
+function crSearchProc() {
+  const q = document.getElementById('crProcInput').value.trim().toLowerCase();
+  const dd = document.getElementById('crDropdown');
+  if (!q) { dd.classList.remove('open'); return; }
+
+  // 전지역 기준 시술 목록 (누적 합계 내림차순)
+  const items = DASHBOARD_DATA.regions['전지역'] || Object.values(DASHBOARD_DATA.regions)[0];
+  const matches = items
+    .filter(([cat, proc]) => proc.toLowerCase().includes(q))
+    .map(([cat, proc, sp]) => ({ cat, proc, total: Object.values(sp).reduce((a,b)=>a+b,0) }))
+    .sort((a,b) => b.total - a.total)
+    .slice(0, 20);
+
+  crDropIdx = -1;
+  if (!matches.length) { dd.classList.remove('open'); return; }
+  dd.innerHTML = matches.map((r,i) =>
+    `<div class="cr-drop-item" data-idx="${i}" onclick="crSelectProc('${r.proc.replace(/'/g,"\'")}')">
+      <span class="cr-drop-cat">${r.cat}</span>${r.proc}
+      <span style="margin-left:auto;font-size:10px;color:var(--text2)">${r.total.toLocaleString('ko-KR')}</span>
+    </div>`
+  ).join('');
+  dd.classList.add('open');
+}
+
+function crKeyNav(e) {
+  const items = document.querySelectorAll('.cr-drop-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { crDropIdx = Math.min(crDropIdx+1, items.length-1); crHighlight(items); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { crDropIdx = Math.max(crDropIdx-1, 0); crHighlight(items); e.preventDefault(); }
+  else if (e.key === 'Enter' && crDropIdx >= 0) { items[crDropIdx].click(); }
+  else if (e.key === 'Escape') { document.getElementById('crDropdown').classList.remove('open'); }
+}
+function crHighlight(items) {
+  items.forEach((el,i) => el.style.background = i===crDropIdx ? 'var(--surface2)' : '');
+}
+
+function crSelectProc(proc) {
+  crCurrentProc = proc;
+  document.getElementById('crProcInput').value = '';
+  document.getElementById('crDropdown').classList.remove('open');
+  const wrap = document.getElementById('crSelectedWrap');
+  // 카테고리 찾기
+  let cat = '';
+  const refItems = DASHBOARD_DATA.regions['전지역'] || Object.values(DASHBOARD_DATA.regions)[0];
+  for (const [c, p] of refItems) { if (p === proc) { cat = c; break; } }
+  wrap.innerHTML = `<div class="cr-selected-tag">
+    <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(88,166,255,.2)">${cat}</span>
+    ${proc}
+    <span class="cr-remove" onclick="crClearProc()">✕</span>
+  </div>`;
+  crRenderAll();
+}
+
+
+function crHighlightRegion(region) {
+  if (!crLineChart) return;
+  crLineChart.data.datasets.forEach(ds => {
+    const match = ds.label === region;
+    ds.borderWidth = match ? 3.5 : 1;
+    ds.borderColor = match ? (REGION_COLORS[region]||'#58a6ff') :
+                             (REGION_COLORS[ds.label]||'#8b949e') + '66';
+  });
+  crLineChart.update();
+}
+
+function crClearProc() {
+  crCurrentProc = null;
+  document.getElementById('crSelectedWrap').innerHTML =
+    '<span class="cr-placeholder">← 시술을 검색해 선택하세요</span>';
+  document.getElementById('crCards').innerHTML =
+    '<div class="cr-empty" style="grid-column:1/-1">시술을 검색해 선택하세요</div>';
+  document.getElementById('crLineWrap').style.display = 'none';
+  document.getElementById('crBottomGrid').style.display = 'none';
+}
+
+function setCrPeriod(w) {
+  crPeriodWeeks = w;
+  document.querySelectorAll('[data-crw]').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.crw) === w)
+  );
+  if (crCurrentProc) crRenderAll();
+}
+
+function crRenderAll() {
+  crRenderCards();
+  crRenderLineChart();
+  crRenderBarAndTable();
+}
+
+function crGetRegionVal(region, proc, idx) {
+  const items = DASHBOARD_DATA.regions[region];
+  if (!items) return 0;
+  for (const [,p,sp] of items) {
+    if (p === proc) return sp[String(idx)] || 0;
+  }
+  return 0;
+}
+
+function crRenderCards() {
+  const proc = crCurrentProc;
+  const dates = DASHBOARD_DATA.dates;
+  const regions = Object.keys(DASHBOARD_DATA.regions);
+  const recentIdx = dates.length - 1;
+  const prevIdx   = recentIdx - 1;
+  const last4     = [recentIdx-3, recentIdx-2, recentIdx-1, recentIdx].filter(i=>i>=0);
+  const prev4     = last4.map(i=>i-4).filter(i=>i>=0);
+  const yoyIdx    = recentIdx - 52;
+
+  const regionData = regions.map(region => {
+    const cur   = crGetRegionVal(region, proc, recentIdx);
+    const prev  = crGetRegionVal(region, proc, prevIdx);
+    const r4    = last4.reduce((s,i)=>s+crGetRegionVal(region,proc,i),0);
+    const p4    = prev4.reduce((s,i)=>s+crGetRegionVal(region,proc,i),0);
+    const yoy_v = yoyIdx>=0 ? crGetRegionVal(region, proc, yoyIdx) : 0;
+    const wow   = prev>0 ? (cur-prev)/prev*100 : null;
+    const chg4w = p4>0  ? (r4-p4)/p4*100 : null;
+    const yoy   = yoy_v>0 ? (cur-yoy_v)/yoy_v*100 : null;
+    return { region, cur, prev, r4, wow, chg4w, yoy, yoy_v };
+  }).filter(d => d.r4 > 0 || d.cur > 0);
+
+  regionData.sort((a,b) => b.r4 - a.r4);
+  const maxR4 = Math.max(...regionData.map(d=>d.r4), 1);
+
+  const wowFmt = v => v==null ? '-' : (v>=0?'+':'')+v.toFixed(1)+'%';
+  const wowCls = v => v==null?'wow-flat':v>2?'wow-up':v<-2?'wow-down':'wow-flat';
+
+  const rankLabels = ['top1','top2','top3'];
+  const cards = regionData.map((d,i) => {
+    const col   = REGION_COLORS[d.region] || '#8b949e';
+    const rank  = i+1;
+    const barW  = (d.r4/maxR4*100).toFixed(1);
+    return `<div class="cr-card" onclick="crHighlightRegion('${d.region}')">
+      <div class="cr-rank ${rankLabels[i]||''}">#${rank}</div>
+      <div class="cr-region">${d.region}</div>
+      <div class="cr-su" style="color:${col}">${fmtSU(d.r4)}</div>
+      <div class="cr-sub">
+        최근주 ${fmtSU(d.cur)}<br>
+        WoW <span class="${wowCls(d.wow)}">${wowFmt(d.wow)}</span>
+        &nbsp;4주증감 <span class="${wowCls(d.chg4w)}">${wowFmt(d.chg4w)}</span>
+      </div>
+      <div class="cr-bar" style="width:${barW}%;background:${col}"></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('crCards').innerHTML = cards || '<div class="cr-empty" style="grid-column:1/-1">해당 시술 데이터 없음</div>';
+}
+
+function crRenderLineChart() {
+  const proc   = crCurrentProc;
+  const dates  = DASHBOARD_DATA.dates;
+  const regions = Object.keys(DASHBOARD_DATA.regions);
+  const recentIdx = dates.length - 1;
+  let startIdx = crPeriodWeeks > 0 ? Math.max(0, recentIdx - crPeriodWeeks + 1) : 0;
+  const idxs   = Array.from({length: recentIdx-startIdx+1}, (_,i)=>startIdx+i);
+  const labels = idxs.map(i => dates[i].slice(5));
+
+  const datasets = regions.map(region => {
+    const col  = REGION_COLORS[region] || '#8b949e';
+    const vals = idxs.map(i => crGetRegionVal(region, proc, i) || null);
+    const hasData = vals.some(v=>v>0);
+    return hasData ? {
+      label: region,
+      data: vals,
+      borderColor: col,
+      backgroundColor: col+'22',
+      borderWidth: region==='전지역' ? 2.5 : 1.5,
+      borderDash: region==='전지역' ? [5,3] : [],
+      pointRadius: idxs.length>26?0:3,
+      pointHoverRadius: 5,
+      tension: 0.3,
+      fill: false,
+      spanGaps: true
+    } : null;
+  }).filter(Boolean);
+
+  const el = document.getElementById('crLineWrap');
+  el.style.display = '';
+  document.getElementById('crLineTitle').textContent = `[${proc}] 지역별 주간 SU 추이`;
+  document.getElementById('crLineSub').textContent   = `${dates[startIdx]} ~ ${dates[recentIdx]} · 전지역(점선)은 전체 합산`;
+
+  if (crLineChart) crLineChart.destroy();
+  crLineChart = new Chart(document.getElementById('crLineChart').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+          titleColor:'#8b949e', bodyColor:'#e6edf3',
+          callbacks: {
+            title: i => i[0].label + '주',
+            label: i => i.raw!=null ? ` ${i.dataset.label}: ${i.raw.toLocaleString('ko-KR')}` : ` ${i.dataset.label}: -`
+          }
+        }
+      },
+      scales: {
+        x: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',font:{size:11},maxTicksLimit:12} },
+        y: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',font:{size:11},
+          callback: v => suHidden ? '***' : v.toLocaleString('ko-KR')} }
+      }
+    }
+  });
+
+  // Legend
+  document.getElementById('crLineLegend').innerHTML = datasets.map(ds =>
+    `<div class="legend-item">
+      <div class="legend-dot" style="background:${ds.borderColor}"></div>
+      <span>${ds.label}</span>
+    </div>`
+  ).join('');
+}
+
+function crRenderBarAndTable() {
+  const proc   = crCurrentProc;
+  const dates  = DASHBOARD_DATA.dates;
+  const regions = Object.keys(DASHBOARD_DATA.regions);
+  const recentIdx = dates.length - 1;
+  const last4 = [recentIdx-3,recentIdx-2,recentIdx-1,recentIdx].filter(i=>i>=0);
+  const prev4 = last4.map(i=>i-4).filter(i=>i>=0);
+  const yoyIdx = recentIdx - 52;
+
+  const rowData = regions.map(region => {
+    const cur   = crGetRegionVal(region, proc, recentIdx);
+    const prev  = crGetRegionVal(region, proc, recentIdx-1);
+    const r4    = last4.reduce((s,i)=>s+crGetRegionVal(region,proc,i),0);
+    const p4    = prev4.reduce((s,i)=>s+crGetRegionVal(region,proc,i),0);
+    const yoy_v = yoyIdx>=0 ? crGetRegionVal(region,proc,yoyIdx):0;
+    const wow   = prev>0 ? (cur-prev)/prev*100 : null;
+    const chg4w = p4>0  ? (r4-p4)/p4*100 : null;
+    const yoy   = yoy_v>0 ? (cur-yoy_v)/yoy_v*100 : null;
+    return { region, cur, prev, r4, p4, yoy_v, wow, chg4w, yoy };
+  }).filter(d=>d.r4>0||d.cur>0).sort((a,b)=>b.r4-a.r4);
+
+  if (!rowData.length) return;
+  document.getElementById('crBottomGrid').style.display = '';
+  document.getElementById('crBarSub').textContent = `${dates[last4[0]]} ~ ${dates[last4[last4.length-1]]}`;
+
+  // 바 차트
+  const barLabels = rowData.map(d=>d.region);
+  const barVals   = rowData.map(d=>d.r4);
+  const barColors = rowData.map(d=>REGION_COLORS[d.region]||'#8b949e');
+
+  if (crBarChart) crBarChart.destroy();
+  crBarChart = new Chart(document.getElementById('crBarChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: [{
+        data: barVals, backgroundColor: barColors.map(c=>c+'aa'),
+        borderColor: barColors, borderWidth:1.5, borderRadius:6
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#161b22',borderColor:'#30363d',borderWidth:1,
+          callbacks:{ label: i => suHidden ? '***' : i.raw.toLocaleString('ko-KR') }
+        }
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#8b949e',font:{size:11}}},
+        y:{grid:{color:'#21262d'},ticks:{color:'#8b949e',font:{size:11},
+          callback: v=>suHidden?'***':v.toLocaleString('ko-KR')}}
+      }
+    }
+  });
+
+  // 테이블
+  const fmtWow = v => v==null?'-':(v>=0?'+':'')+v.toFixed(1)+'%';
+  const wCls   = v => v==null?'':'color:'+(v>2?'#3fb950':v<-2?'#f85149':'#8b949e');
+  document.getElementById('crTableHead').innerHTML =
+    `<th class="cr-th" style="text-align:left">지역</th>
+     <th class="cr-th">최근주</th><th class="cr-th">전주</th>
+     <th class="cr-th">최근4주</th><th class="cr-th">WoW</th>
+     <th class="cr-th">4주증감</th><th class="cr-th">YoY</th>`;
+  document.getElementById('crTableBody').innerHTML = rowData.map(d =>
+    `<tr>
+      <td class="cr-td" style="color:${REGION_COLORS[d.region]||'#e6edf3'}">${d.region}</td>
+      <td class="cr-td">${fmtSU(d.cur)}</td>
+      <td class="cr-td">${fmtSU(d.prev)}</td>
+      <td class="cr-td">${fmtSU(d.r4)}</td>
+      <td class="cr-td" style="${wCls(d.wow)}">${fmtWow(d.wow)}</td>
+      <td class="cr-td" style="${wCls(d.chg4w)}">${fmtWow(d.chg4w)}</td>
+      <td class="cr-td" style="${wCls(d.yoy)}">${fmtWow(d.yoy)}</td>
+    </tr>`
+  ).join('');
+}
+
+// 드롭다운 외부 클릭 시 닫기
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cr-search-wrap'))
+    document.getElementById('crDropdown')?.classList.remove('open');
+});
 
 loadData();
 </script>
