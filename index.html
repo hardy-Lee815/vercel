@@ -320,6 +320,21 @@
   .type-tab[data-type="시술"] .type-badge { background:rgba(88,166,255,.15); color:var(--accent); }
   .type-tab[data-type="수술"] .type-badge { background:rgba(244,114,182,.15); color:#f472b6; }
 
+
+  /* cr-card 강조/숨김/X 버튼 */
+  .cr-card { position:relative; transition:opacity .2s, box-shadow .2s; }
+  .cr-card.cr-highlighted { box-shadow:0 0 0 2px var(--accent); opacity:1 !important; }
+  .cr-card.cr-dimmed { opacity:0.35; }
+  .cr-card.cr-hidden-region { display:none; }
+  .cr-card-x { position:absolute; top:6px; right:6px; width:16px; height:16px; border-radius:50%;
+    background:rgba(139,148,158,.25); color:var(--text2); font-size:10px; line-height:16px;
+    text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background .15s; z-index:10; }
+  .cr-card-x:hover { background:rgba(248,81,73,.5); color:#fff; }
+  .cr-restore-btn { font-size:11px; padding:4px 10px; border-radius:6px; border:1px solid var(--border);
+    background:var(--surface2); color:var(--text2); cursor:pointer; white-space:nowrap; }
+  .cr-restore-btn:hover { border-color:var(--accent); color:var(--accent); }
+
 </style>
 </head>
 <body>
@@ -1723,6 +1738,8 @@ window.addEventListener("DOMContentLoaded", setupUploadDrop);
 //  지역별 수요 비교 (Cross-Region Demand View)
 // ════════════════════════════════════════════════════════
 let crCurrentProc = null;
+let crHighlightedRegion = null;   // 강조된 지역
+let crHiddenRegions = new Set();  // 삭제(숨김)된 지역 목록
 let crPeriodWeeks = 13;
 let crLineChart   = null;
 let crBarChart    = null;
@@ -1797,19 +1814,56 @@ function crSelectProc(proc) {
 }
 
 
-function crHighlightRegion(region) {
+// 카드 클릭: 강조 토글
+function crToggleHighlight(region) {
+  crHighlightedRegion = (crHighlightedRegion === region) ? null : region;
+  crApplyHighlight();
+  crRenderCards(); // 카드 상태 갱신
+}
+
+// 차트 강조 적용
+function crApplyHighlight() {
   if (!crLineChart) return;
   crLineChart.data.datasets.forEach(ds => {
-    const match = ds.label === region;
-    ds.borderWidth = match ? 3.5 : 1;
-    ds.borderColor = match ? (REGION_COLORS[region]||'#58a6ff') :
-                             (REGION_COLORS[ds.label]||'#8b949e') + '66';
+    const col = REGION_COLORS[ds.label] || '#8b949e';
+    if (!crHighlightedRegion) {
+      // 강조 없음: 모두 기본
+      ds.borderWidth = ds.label === '전지역' ? 2 : 1.5;
+      ds.borderColor = col;
+      ds.borderDash  = ds.label === '전지역' ? [5,3] : [];
+    } else if (ds.label === crHighlightedRegion) {
+      // 강조 지역: 두껍고 선명하게
+      ds.borderWidth = 4;
+      ds.borderColor = col;
+      ds.borderDash  = [];
+    } else {
+      // 나머지: 흐리게
+      ds.borderWidth = 1;
+      ds.borderColor = col + '44';
+      ds.borderDash  = [];
+    }
   });
   crLineChart.update();
 }
 
+// X 버튼: 지역 숨기기
+function crHideRegion(region) {
+  crHiddenRegions.add(region);
+  if (crHighlightedRegion === region) crHighlightedRegion = null;
+  crRenderAll();
+}
+
+// 모두 복원
+function crRestoreRegions() {
+  crHiddenRegions.clear();
+  crHighlightedRegion = null;
+  crRenderAll();
+}
+
 function crClearProc() {
   crCurrentProc = null;
+  crHighlightedRegion = null;
+  crHiddenRegions.clear();
   document.getElementById('crSelectedWrap').innerHTML =
     '<span class="cr-placeholder">← 시술을 검색해 선택하세요</span>';
   document.getElementById('crCards').innerHTML =
@@ -1874,8 +1928,12 @@ function crRenderCards() {
     const col   = REGION_COLORS[d.region] || '#8b949e';
     const rank  = i+1;
     const barW  = (d.r4/maxR4*100).toFixed(1);
-    return `<div class="cr-card" onclick="crHighlightRegion('${d.region}')">
+    const isHL  = crHighlightedRegion === d.region;
+    const isDim = crHighlightedRegion && crHighlightedRegion !== d.region;
+    const cls   = isHL ? 'cr-highlighted' : isDim ? 'cr-dimmed' : '';
+    return `<div class="cr-card ${cls}" onclick="crToggleHighlight('${d.region}')">
       <div class="cr-rank ${rankLabels[i]||''}">#${rank}</div>
+      <div class="cr-card-x" onclick="event.stopPropagation();crHideRegion('${d.region}')" title="${d.region} 숨기기">✕</div>
       <div class="cr-region">${d.region}</div>
       <div class="cr-su" style="color:${col}">${fmtSU(d.r4)}</div>
       <div class="cr-sub">
@@ -1887,7 +1945,16 @@ function crRenderCards() {
     </div>`;
   }).join('');
 
-  document.getElementById('crCards').innerHTML = cards || '<div class="cr-empty" style="grid-column:1/-1">해당 시술 데이터 없음</div>';
+  // 숨김 해제 버튼 (숨긴 지역 있을 때만)
+  const restoreBtn = crHiddenRegions.size > 0
+    ? `<div style="display:flex;align-items:center;gap:8px;grid-column:1/-1;padding:4px 0">
+        <span style="font-size:11px;color:var(--text2)">숨김: ${[...crHiddenRegions].join(', ')}</span>
+        <button class="cr-restore-btn" onclick="crRestoreRegions()">↩ 모두 복원</button>
+       </div>`
+    : '';
+
+  document.getElementById('crCards').innerHTML =
+    (cards || '<div class="cr-empty" style="grid-column:1/-1">해당 시술 데이터 없음</div>') + restoreBtn;
 }
 
 function crRenderLineChart() {
@@ -1899,24 +1966,26 @@ function crRenderLineChart() {
   const idxs   = Array.from({length: recentIdx-startIdx+1}, (_,i)=>startIdx+i);
   const labels = idxs.map(i => dates[i].slice(5));
 
-  const datasets = regions.map(region => {
-    const col  = REGION_COLORS[region] || '#8b949e';
-    const vals = idxs.map(i => crGetRegionVal(region, proc, i) || null);
-    const hasData = vals.some(v=>v>0);
-    return hasData ? {
-      label: region,
-      data: vals,
-      borderColor: col,
-      backgroundColor: col+'22',
-      borderWidth: region==='전지역' ? 2.5 : 1.5,
-      borderDash: region==='전지역' ? [5,3] : [],
-      pointRadius: idxs.length>26?0:3,
-      pointHoverRadius: 5,
-      tension: 0.3,
-      fill: false,
-      spanGaps: true
-    } : null;
-  }).filter(Boolean);
+  const datasets = regions
+    .filter(region => !crHiddenRegions.has(region))
+    .map(region => {
+      const col  = REGION_COLORS[region] || '#8b949e';
+      const vals = idxs.map(i => crGetRegionVal(region, proc, i) || null);
+      const hasData = vals.some(v=>v>0);
+      return hasData ? {
+        label: region,
+        data: vals,
+        borderColor: col,
+        backgroundColor: col+'22',
+        borderWidth: region==='전지역' ? 2.5 : 1.5,
+        borderDash: region==='전지역' ? [5,3] : [],
+        pointRadius: idxs.length>26?0:3,
+        pointHoverRadius: 5,
+        tension: 0.3,
+        fill: false,
+        spanGaps: true
+      } : null;
+    }).filter(Boolean);
 
   const el = document.getElementById('crLineWrap');
   el.style.display = '';
@@ -1949,10 +2018,13 @@ function crRenderLineChart() {
     }
   });
 
+  // 강조 적용
+  crApplyHighlight();
+
   // Legend
   document.getElementById('crLineLegend').innerHTML = datasets.map(ds =>
-    `<div class="legend-item">
-      <div class="legend-dot" style="background:${ds.borderColor}"></div>
+    `<div class="legend-item" onclick="crToggleHighlight('${ds.label}')" style="cursor:pointer">
+      <div class="legend-dot" style="background:${REGION_COLORS[ds.label]||'#8b949e'}"></div>
       <span>${ds.label}</span>
     </div>`
   ).join('');
@@ -1967,7 +2039,9 @@ function crRenderBarAndTable() {
   const prev4 = last4.map(i=>i-4).filter(i=>i>=0);
   const yoyIdx = recentIdx - 52;
 
-  const rowData = regions.map(region => {
+  const rowData = regions
+    .filter(region => !crHiddenRegions.has(region))
+    .map(region => {
     const cur   = crGetRegionVal(region, proc, recentIdx);
     const prev  = crGetRegionVal(region, proc, recentIdx-1);
     const r4    = last4.reduce((s,i)=>s+crGetRegionVal(region,proc,i),0);
