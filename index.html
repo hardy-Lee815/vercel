@@ -802,12 +802,16 @@ function init() {
     tab.onclick = () => setPage(tab.dataset.page);
   });
 
-  // Period filter
-  document.querySelectorAll('.period-btn').forEach(btn => {
+  // Period filter — 메인 트렌드 차트 전용([data-weeks]).
+  // 주의: '.period-btn' 전체를 잡으면 지역별 수요 비교의 [data-crw] 버튼까지 덮어써
+  // 인라인 onclick="setCrPeriod(...)" 가 무력화된다.
+  document.querySelectorAll('.period-btn[data-weeks]').forEach(btn => {
     btn.onclick = () => {
-      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.period-btn[data-weeks]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentPeriodWeeks = parseInt(btn.dataset.weeks);
+      // 'monthly' 는 숫자가 아니므로 문자열 그대로 둔다(parseInt 시 NaN → 월별 분기 미작동).
+      const _w = btn.dataset.weeks;
+      currentPeriodWeeks = (_w === 'monthly') ? 'monthly' : parseInt(_w);
       renderMainChart();
     };
   });
